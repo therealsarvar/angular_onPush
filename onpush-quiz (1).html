@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Angular OnPush Change Detection — Quiz</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f7f7f5;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 24px;
+    line-height: 1.5;
+  }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 24px;
+    font-weight: 500;
+    margin: 0 0 6px;
+  }
+  .subtitle {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+  .question {
+    background: #e6f1fb;
+    border-left: 4px solid #378ADD;
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 14px;
+    color: #0c447c;
+    font-size: 15px;
+  }
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: #555;
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #eee;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.1);
+  }
+  ul.tree, ul.tree ul {
+    list-style: none;
+    margin: 0;
+  }
+  ul.tree { padding-left: 0; }
+  ul.tree ul {
+    padding-left: 28px;
+    border-left: 1px dashed #ccc;
+  }
+  .node {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    margin: 3px 0;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    background: white;
+    cursor: pointer;
+    font-size: 13px;
+    user-select: none;
+    transition: all 0.12s;
+  }
+  .node:hover { background: #f5f5f3; }
+  .node.selected {
+    background: #b5d4f4;
+    border-color: #378add;
+    color: #042c53;
+  }
+  .node.dirty {
+    background: #fac775;
+    border-color: #ba7517;
+    color: #412402;
+    font-weight: 600;
+  }
+  .node.dirty.selected {
+    box-shadow: 0 0 0 2px #378add;
+  }
+  .node.correct {
+    background: #c0dd97;
+    border-color: #639922;
+    color: #173404;
+  }
+  .node.incorrect {
+    background: #f7c1c1;
+    border-color: #e24b4a;
+    color: #501313;
+  }
+  .node.missed {
+    background: #fff;
+    border: 2px dashed #e24b4a;
+    color: #501313;
+  }
+  .badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  .badge-onpush {
+    background: #cecbf6;
+    color: #26215c;
+  }
+  .badge-default {
+    background: #d3d1c7;
+    color: #2c2c2a;
+  }
+  .chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #888;
+    font-size: 10px;
+    margin-left: 2px;
+    transition: transform 0.15s ease, background 0.12s;
+    user-select: none;
+  }
+  .chevron:hover {
+    background: rgba(0,0,0,0.08);
+    color: #222;
+  }
+  .chevron.collapsed {
+    transform: rotate(-90deg);
+  }
+  .hidden-dirty-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ba7517;
+    margin-left: 4px;
+    display: inline-block;
+    box-shadow: 0 0 0 2px rgba(186,117,23,0.25);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  button {
+    padding: 9px 16px;
+    border: 1px solid #d0d0d0;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.12s;
+  }
+  button:hover { background: #f5f5f3; }
+  button.primary {
+    background: #1a1a1a;
+    color: white;
+    border-color: #1a1a1a;
+  }
+  button.primary:hover { background: #333; }
+  .feedback {
+    margin-top: 14px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    display: none;
+  }
+  .feedback.success {
+    background: #eaf3de;
+    color: #173404;
+    border: 1px solid #639922;
+  }
+  .feedback.fail {
+    background: #fcebeb;
+    color: #501313;
+    border: 1px solid #e24b4a;
+  }
+  .feedback.hint {
+    background: #e6f1fb;
+    color: #0c447c;
+    border: 1px solid #378add;
+  }
+  .feedback code {
+    background: rgba(0,0,0,0.06);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+  .stats {
+    margin-top: 14px;
+    font-size: 12px;
+    color: #666;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #eee;
+    display: inline-block;
+  }
+  .rules {
+    margin-top: 24px;
+    padding: 14px 18px;
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #444;
+  }
+  .rules h3 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .rules ol { margin: 0; padding-left: 20px; }
+  .rules li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Angular OnPush Quiz</h1>
+  <p class="subtitle">Qaysi komponentda event bo'lganini ko'ring va Angular qaysi komponentlarni qayta tekshirishini tanlang.</p>
+  
+  <div id="question" class="question">Yuklanmoqda...</div>
+  
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot" style="background:#fac775"></span>Dirty (event bo'lgan)</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#b5d4f4"></span>Siz tanladingiz</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#c0dd97"></span>To'g'ri javob</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#f7c1c1"></span>Xato tanlash</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#fff;border:2px dashed #e24b4a"></span>O'tkazib yuborildi</div>
+  </div>
+  
+  <ul class="tree" id="tree"></ul>
+  
+  <div class="controls">
+    <button class="primary" onclick="checkAnswer()">Tekshirish</button>
+    <button onclick="newQuestion()">Yangi savol</button>
+    <button onclick="showHint()">Ko'rsatma</button>
+    <button onclick="clearSelection()">Tozalash</button>
+    <button onclick="expandAll()">▼ Yoyish</button>
+    <button onclick="collapseAll()">▶ Yig'ish</button>
+  </div>
+  
+  <div id="feedback" class="feedback"></div>
+  
+  <div class="stats">
+    <strong>Natija:</strong> <span id="correct-count">0</span> to'g'ri / <span id="total-count">0</span> ta savol
+  </div>
+  
+  <div class="rules">
+    <h3>Qoidalar (eslatma)</h3>
+    <ol>
+      <li>Event bo'lgan komponentdan root'gacha — bu <strong>"dirty path"</strong>.</li>
+      <li>Dirty path'dagi hamma komponent (OnPush bo'lsa ham) qayta tekshiriladi.</li>
+      <li>Dirty path'dan tashqaridagi <strong>OnPush</strong> komponent — o'zi va butun ostidagi subtree SKIP.</li>
+      <li>Dirty path'dan tashqaridagi <strong>Default</strong> komponent — odatda tekshiriladi, AGAR uning yuqorisida skip qilingan OnPush ota bo'lmasa.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+const tree = {
+  id: 'App', strategy: 'Default', children: [
+    { id: 'Navbar', strategy: 'Default', children: [
+      { id: 'Logo', strategy: 'OnPush' },
+      { id: 'SearchBar', strategy: 'Default', children: [
+        { id: 'SearchSuggestions', strategy: 'OnPush' }
+      ]},
+      { id: 'NotificationBell', strategy: 'OnPush', children: [
+        { id: 'NotificationList', strategy: 'Default' }
+      ]}
+    ]},
+    { id: 'Layout', strategy: 'Default', children: [
+      { id: 'Sidebar', strategy: 'OnPush', children: [
+        { id: 'Menu', strategy: 'Default', children: [
+          { id: 'MenuItem1', strategy: 'OnPush' },
+          { id: 'MenuItem2', strategy: 'Default' }
+        ]},
+        { id: 'UserBox', strategy: 'OnPush', children: [
+          { id: 'AvatarSide', strategy: 'Default' }
+        ]}
+      ]},
+      { id: 'Content', strategy: 'OnPush', children: [
+        { id: 'Feed', strategy: 'Default', children: [
+          { id: 'PostList', strategy: 'OnPush', children: [
+            { id: 'Post1', strategy: 'Default', children: [
+              { id: 'PostActions', strategy: 'OnPush' }
+            ]},
+            { id: 'Post2', strategy: 'OnPush', children: [
+              { id: 'PostBody', strategy: 'Default' }
+            ]}
+          ]},
+          { id: 'Comments', strategy: 'Default', children: [
+            { id: 'CommentItem', strategy: 'OnPush' }
+          ]}
+        ]},
+        { id: 'Profile', strategy: 'OnPush', children: [
+          { id: 'AvatarProfile', strategy: 'Default' },
+          { id: 'Stats', strategy: 'OnPush' }
+        ]}
+      ]}
+    ]},
+    { id: 'Footer', strategy: 'Default', children: [
+      { id: 'FooterLinks', strategy: 'OnPush' }
+    ]}
+  ]
+};
+
+let state = {
+  dirtyId: null,
+  selected: new Set(),
+  showAnswer: false,
+  collapsed: new Set(),
+  correctCount: 0,
+  totalCount: 0
+};
+
+function getAllNodes(node, list = []) {
+  list.push(node);
+  (node.children || []).forEach(c => getAllNodes(c, list));
+  return list;
+}
+
+function findDirtyPath(node, targetId, path = []) {
+  if (node.id === targetId) return [...path, node.id];
+  for (const child of node.children || []) {
+    const result = findDirtyPath(child, targetId, [...path, node.id]);
+    if (result) return result;
+  }
+  return null;
+}
+
+// Asosiy CD logikasi:
+// Root'dan boshlab pastga yuramiz. Har bir node uchun:
+// - Agar OnPush va dirty path'da emas → SKIP (subtree ham)
+// - Aks holda → tekshir va children'larga o't
+function computeChecked(node, dirtyPath, checked = new Set()) {
+  if (node.strategy === 'OnPush' && !dirtyPath.includes(node.id)) {
+    return checked;
+  }
+  checked.add(node.id);
+  (node.children || []).forEach(c => computeChecked(c, dirtyPath, checked));
+  return checked;
+}
+
+function renderTree() {
+  const root = document.getElementById('tree');
+  root.innerHTML = '';
+  renderNode(tree, root);
+}
+
+function renderNode(node, parent) {
+  const li = document.createElement('li');
+  const div = document.createElement('div');
+  div.className = 'node';
+  div.dataset.id = node.id;
+  
+  if (node.id === state.dirtyId) div.classList.add('dirty');
+  if (state.selected.has(node.id) && !state.showAnswer) div.classList.add('selected');
+  
+  if (state.showAnswer) {
+    const dirtyPath = findDirtyPath(tree, state.dirtyId) || [];
+    const checked = computeChecked(tree, dirtyPath);
+    const shouldCheck = checked.has(node.id);
+    const userPicked = state.selected.has(node.id);
+    if (shouldCheck && userPicked) div.classList.add('correct');
+    else if (!shouldCheck && userPicked) div.classList.add('incorrect');
+    else if (shouldCheck && !userPicked) div.classList.add('missed');
+  }
+  
+  const hasChildren = node.children && node.children.length;
+  const isCollapsed = state.collapsed.has(node.id);
+  
+  // Check if dirty node is hidden inside this collapsed subtree
+  let hasHiddenDirty = false;
+  if (isCollapsed && state.dirtyId) {
+    const subNodes = getAllNodes(node);
+    hasHiddenDirty = subNodes.some(n => n.id === state.dirtyId && n.id !== node.id);
+  }
+  
+  const dirtyMark = node.id === state.dirtyId ? '🔥 ' : '';
+  const hiddenDot = hasHiddenDirty ? '<span class="hidden-dirty-dot" title="Dirty komponent ichida yashirilgan"></span>' : '';
+  const chevron = hasChildren 
+    ? `<span class="chevron ${isCollapsed ? 'collapsed' : ''}" data-toggle="${node.id}" title="${isCollapsed ? 'Yoyish' : "Yig'ish"}">▼</span>`
+    : '';
+  
+  div.innerHTML = `<span>${dirtyMark}${node.id}</span><span class="badge ${node.strategy === 'OnPush' ? 'badge-onpush' : 'badge-default'}">${node.strategy}</span>${hiddenDot}${chevron}`;
+  
+  div.onclick = (e) => {
+    if (e.target.dataset && e.target.dataset.toggle) {
+      e.stopPropagation();
+      toggleCollapse(node.id);
+      return;
+    }
+    toggleSelect(node.id);
+  };
+  
+  li.appendChild(div);
+  
+  if (hasChildren && !isCollapsed) {
+    const ul = document.createElement('ul');
+    node.children.forEach(c => renderNode(c, ul));
+    li.appendChild(ul);
+  }
+  
+  parent.appendChild(li);
+}
+
+function toggleCollapse(id) {
+  if (state.collapsed.has(id)) state.collapsed.delete(id);
+  else state.collapsed.add(id);
+  renderTree();
+}
+
+function expandAll() {
+  state.collapsed = new Set();
+  renderTree();
+}
+
+function collapseAll() {
+  // Collapse every node that has children
+  const all = getAllNodes(tree);
+  all.forEach(n => {
+    if (n.children && n.children.length && n.id !== tree.id) {
+      state.collapsed.add(n.id);
+    }
+  });
+  renderTree();
+}
+
+function expandToDirty() {
+  // Make sure the dirty node is visible by un-collapsing all its ancestors
+  if (!state.dirtyId) return;
+  const path = findDirtyPath(tree, state.dirtyId);
+  if (path) {
+    path.forEach(id => state.collapsed.delete(id));
+  }
+}
+
+function toggleSelect(id) {
+  if (state.showAnswer) return;
+  if (state.selected.has(id)) state.selected.delete(id);
+  else state.selected.add(id);
+  renderTree();
+}
+
+function newQuestion() {
+  const all = getAllNodes(tree);
+  let dirty;
+  // Avoid picking the same component twice in a row
+  do {
+    dirty = all[Math.floor(Math.random() * all.length)];
+  } while (dirty.id === state.dirtyId && all.length > 1);
+  
+  state.dirtyId = dirty.id;
+  state.selected = new Set();
+  state.showAnswer = false;
+  expandToDirty();
+  document.getElementById('question').innerHTML = 
+    `🔥 <strong>${dirty.id}</strong> <span style="opacity:0.7">(${dirty.strategy})</span> komponentida event yuz berdi. ` +
+    `Qaysi komponentlar qayta tekshiriladi? Hammasini tanlang.`;
+  document.getElementById('feedback').style.display = 'none';
+  renderTree();
+}
+
+function clearSelection() {
+  state.selected = new Set();
+  state.showAnswer = false;
+  document.getElementById('feedback').style.display = 'none';
+  renderTree();
+}
+
+function checkAnswer() {
+  if (!state.dirtyId) {
+    newQuestion();
+    return;
+  }
+  if (state.showAnswer) {
+    newQuestion();
+    return;
+  }
+  state.showAnswer = true;
+  state.totalCount++;
+  
+  const dirtyPath = findDirtyPath(tree, state.dirtyId) || [];
+  const checked = computeChecked(tree, dirtyPath);
+  const userSel = state.selected;
+  let allCorrect = true;
+  const all = getAllNodes(tree);
+  for (const n of all) {
+    const should = checked.has(n.id);
+    const picked = userSel.has(n.id);
+    if (should !== picked) { allCorrect = false; break; }
+  }
+  
+  if (allCorrect) state.correctCount++;
+  
+  document.getElementById('correct-count').textContent = state.correctCount;
+  document.getElementById('total-count').textContent = state.totalCount;
+  
+  const fb = document.getElementById('feedback');
+  if (allCorrect) {
+    fb.className = 'feedback success';
+    fb.innerHTML = `<strong>✓ Mukammal!</strong> Hammasini topdingiz.<br><br><em>Dirty path: <code>${dirtyPath.join(' → ')}</code></em><br>"Yangi savol" tugmasini bosing.`;
+  } else {
+    const missed = [...checked].filter(id => !userSel.has(id));
+    const extra = [...userSel].filter(id => !checked.has(id));
+    let msg = '<strong>✗ Xato bor.</strong>';
+    if (missed.length) msg += `<br><br><strong>O'tkazib yuborildi (tekshiriladi, lekin tanlamadingiz):</strong><br>${missed.join(', ')}`;
+    if (extra.length) msg += `<br><br><strong>Ortiqcha tanladingiz (tekshirilmaydi):</strong><br>${extra.join(', ')}`;
+    msg += `<br><br><em>Dirty path: <code>${dirtyPath.join(' → ')}</code></em>`;
+    fb.className = 'feedback fail';
+    fb.innerHTML = msg;
+  }
+  fb.style.display = 'block';
+  renderTree();
+}
+
+function showHint() {
+  if (!state.dirtyId) return;
+  const dirtyPath = findDirtyPath(tree, state.dirtyId) || [];
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback hint';
+  fb.innerHTML = 
+    `<strong>Ko'rsatma:</strong><br>` +
+    `1. <strong>${state.dirtyId}</strong>'dan root'gacha yo'l (dirty path): <code>${dirtyPath.join(' → ')}</code><br>` +
+    `2. Bu yo'ldagi hamma komponent tekshiriladi (OnPush bo'lsa ham).<br>` +
+    `3. Yo'ldan tashqaridagi <strong>OnPush</strong> — o'zi va butun subtree SKIP.<br>` +
+    `4. Yo'ldan tashqaridagi <strong>Default</strong> — odatda tekshiriladi (yuqorisida skip bo'lgan OnPush ota bo'lmasa).`;
+  fb.style.display = 'block';
+}
+
+newQuestion();
+</script>
+</body>
+</html>
